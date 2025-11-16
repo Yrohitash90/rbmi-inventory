@@ -187,6 +187,7 @@
         <table class="table table-bordered">
           <thead>
             <tr>
+              <th>No.</th>
               <th>Item</th>
               <th>Quantity Used</th>
               <th>Date</th>
@@ -196,6 +197,7 @@
   {% if usage %}
     {% for u in usage %}
     <tr>
+      <td>{{ loop.index }}</td>
       <td>{{ u.item_name }}</td>
       <td>{{ u.quantity_used | round(2) }}</td>
       <td>{{ u.used_date }}</td>
