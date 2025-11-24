@@ -80,9 +80,12 @@ CREATE TABLE `items_master` (
   `item_id` int NOT NULL AUTO_INCREMENT,
   `item_name` varchar(100) NOT NULL,
   `unit` varchar(20) NOT NULL,
+  `price` decimal(10,2) DEFAULT '0.00',
+  `total_qty` double DEFAULT '0',
+  `total_amount` double DEFAULT '0',
   PRIMARY KEY (`item_id`),
   UNIQUE KEY `item_name` (`item_name`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -91,7 +94,7 @@ CREATE TABLE `items_master` (
 
 LOCK TABLES `items_master` WRITE;
 /*!40000 ALTER TABLE `items_master` DISABLE KEYS */;
-INSERT INTO `items_master` VALUES (1,'Rice','KG'),(2,'Atta','KG'),(3,'Refined oil (Fortune)','LTR'),(4,'Mustured Oil','LTR'),(5,'Arahar Dal','KG');
+INSERT INTO `items_master` VALUES (1,'Rice','Kg',0.00,30,1300),(2,'Aata','Kg',0.00,0,0),(3,'Refined oil (fortune)','Ltr',0.00,0,0),(4,'Mustred oil ','litre',0.00,0,0),(5,'Arahar dal','kg',0.00,12,1200),(6,'Rajma','kg',0.00,0,0),(7,'Chole','kg',0.00,0,0),(8,'Urad Dal saboot','kg',0.00,0,0),(9,'Masoore dal','kg',0.00,0,0),(10,'Besan','kg',0.00,0,0),(11,'Sugar','kg',0.00,0,0),(12,'Moong dal','kg',0.00,0,0),(13,'Surf','kg',0.00,0,0),(14,'Dal malka','kg',0.00,0,0),(15,'Maida','kg',0.00,0,0),(16,'Lobiya','kg',0.00,0,0),(17,'chane ki dal','kg',0.00,0,0),(18,'kala chana','kg',0.00,0,0),(19,'jeera','kg',0.00,0,0),(20,'Kali mirch','kg',0.00,0,0),(21,'Salt','kg',0.00,0,0),(22,'Dhaniya Powder','Kg',0.00,0,0),(23,'Red Chilli','kg',0.00,0,0),(24,'termuric powder','kg',0.00,0,0),(25,'Hing','kg',0.00,0,0),(26,'Black Salt','kg',0.00,0,0),(27,'Hari Ilaichi','kg',0.00,0,0),(28,'Methi Dana','kg',0.00,0,0),(29,'Mustured Seeds','kg',0.00,0,0),(30,'Kasuri Methi','kg',0.00,0,0),(31,'Chat masala','kg',0.00,0,0),(32,'Chana masala','kg',0.00,0,0),(33,'Raita Masala','kg',0.00,0,0),(34,'Soya Bean','kg',0.00,0,0),(35,'Soya bean chura','kg',0.00,0,0),(36,'Chowmin','kg',0.00,0,0),(37,'Tomato Souce','Count',0.00,0,0),(38,'Chilli Souce','Count',0.00,0,0),(39,'Vinegar','Count',0.00,0,0),(40,'Ajinomoto','kg',0.00,0,0),(41,'kuti mirch','kg',0.00,0,0),(42,'maggi ','count',0.00,0,0),(43,'Macroni','kg',0.00,0,0),(44,'tej patta','kg',0.00,0,0),(45,'baking powder','kg',0.00,0,0);
 /*!40000 ALTER TABLE `items_master` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -204,8 +207,32 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'manager','manager123','manager'),(2,'mess','1234','mess'),(3,'canteen','canteen123','canteen');
+INSERT INTO `users` VALUES (1,'manager','1234','manager'),(2,'mess','1234','mess'),(3,'canteen','1234','canteen');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `vendor_master`
+--
+
+DROP TABLE IF EXISTS `vendor_master`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `vendor_master` (
+  `vendor_id` int NOT NULL AUTO_INCREMENT,
+  `vendor_name` varchar(100) NOT NULL,
+  PRIMARY KEY (`vendor_id`),
+  UNIQUE KEY `vendor_name` (`vendor_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `vendor_master`
+--
+
+LOCK TABLES `vendor_master` WRITE;
+/*!40000 ALTER TABLE `vendor_master` DISABLE KEYS */;
+/*!40000 ALTER TABLE `vendor_master` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -217,4 +244,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-11-15 20:33:45
+-- Dump completed on 2025-11-24 19:42:56

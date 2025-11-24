@@ -117,7 +117,7 @@
   <a class="nav-link" href="{{ url_for('add_item_master') }}">
     <i class="bi bi-speedometer2"></i> Add Item
   </a>
-  <a class="nav-link" href="{{ url_for('order_received') }}"><i class="bi bi-cart-check"></i> Order Received</a>
+  <a class="nav-link" href="{{ url_for('order_received') }}"><i class="bi bi-cart-check"></i> Purchase</a>
   <a class="nav-link active" href="{{ url_for('manager_dashboard') }}">
     <i class="bi bi-box-seam"></i> Stock Dashboard
   </a>
@@ -153,6 +153,8 @@
       <th>Mess Stock</th>
       <th>Canteen Stock</th>
       <th>Total Stock</th>
+      <th>Value</th>
+      <th>P/U Price</th>
     </tr>
   </thead>
 
@@ -164,6 +166,8 @@
       <td>{{ s.mess_qty }}&nbsp;&nbsp;&nbsp;{{ s.unit }}</td>
       <td>{{ s.canteen_qty }}&nbsp;&nbsp;&nbsp;{{ s.unit }}</td>
       <td>{{ s.total_qty }}&nbsp;&nbsp;&nbsp;{{ s.unit }}</td>
+      <td>{{ s.price*s.total_qty }}</td>
+      <td>{{ s.price }}</td>
     </tr>
     {% endfor %}
   </tbody>

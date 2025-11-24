@@ -9,7 +9,7 @@ from flask import (
     session,
     make_response,
 )
-from datetime import date
+from datetime import date,datetime,timedelta
 from functools import wraps
 from io import StringIO
 import csv
@@ -163,10 +163,10 @@ def order_received():
             vendor = request.form["vendor_name"]
             item_id = request.form["item_id"]
             unit = request.form["unit"]
-            total = request.form["total_qty"] or 0
-            mess = request.form["mess_qty"] or 0
-            canteen = request.form["canteen_qty"] or 0
-            price = request.form["price"] or 0
+            total = float(request.form["total_qty"] or 0)
+            mess = float(request.form["mess_qty"] or 0)
+            canteen = float(request.form["canteen_qty"] or 0)
+            purchase_amount = float(request.form["price"] or 0)   # total amount
 
             # Insert order
             cursor.execute(
@@ -174,10 +174,10 @@ def order_received():
                 INSERT INTO orders (vendor_name, item_id, unit, total_qty, mess_qty, canteen_qty, price)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """,
-                (vendor, item_id, unit, total, mess, canteen, price),
+                (vendor, item_id, unit, total, mess, canteen, purchase_amount),
             )
 
-            # Mess stock
+            # Mess stock update
             cursor.execute(
                 """
                 INSERT INTO mess_stock (item_id, quantity)
@@ -187,7 +187,7 @@ def order_received():
                 (item_id, mess),
             )
 
-            # Canteen stock
+            # Canteen stock update
             cursor.execute(
                 """
                 INSERT INTO canteen_stock (item_id, quantity)
@@ -197,28 +197,76 @@ def order_received():
                 (item_id, canteen),
             )
 
+        # ------------------ CORRECT WEIGHTED AVERAGE UPDATE ------------------
+            cursor.execute(
+                "SELECT total_qty, total_amount FROM items_master WHERE item_id=%s",
+                (item_id,)
+            )
+            row = cursor.fetchone()
+
+            old_qty = float(row["total_qty"] or 0)
+            old_amount = float(row["total_amount"] or 0)
+
+            new_total_qty = old_qty + total
+            new_total_amount = old_amount + purchase_amount
+
+            if new_total_qty > 0:
+                new_price = new_total_amount / new_total_qty
+            else:
+                new_price = 0
+
+            cursor.execute(
+                """
+                UPDATE items_master
+                SET total_qty=%s, total_amount=%s, price=%s
+                WHERE item_id=%s
+                """,
+                (new_total_qty, new_total_amount, new_price, item_id)
+            )
+
             conn.commit()
             flash("Order Saved & Stocks Updated!", "success")
             return redirect(url_for("order_received"))
 
-        # GET: items + orders
+        # ---------- GET SECTION ----------
         cursor.execute("SELECT * FROM items_master ORDER BY item_name ASC")
         items = cursor.fetchall()
+
+        cursor.execute("SELECT vendor_name FROM vendor_master ORDER BY vendor_name ASC")
+        vendors = [v["vendor_name"] for v in cursor.fetchall()]
+
+        today = date.today()
+        from_30_days = today - timedelta(days=30)
+
+        from_date = request.args.get("from_date", from_30_days.isoformat())
+        to_date = request.args.get("to_date", today.isoformat())
 
         cursor.execute(
             """
             SELECT o.*, i.item_name
             FROM orders o
             JOIN items_master i ON o.item_id = i.item_id
+            WHERE o.order_date BETWEEN %s AND %s
             ORDER BY o.id DESC
-            """
+            """,
+            (from_date, to_date),
         )
         orders = cursor.fetchall()
+
     finally:
         cursor.close()
         conn.close()
 
-    return render_template("order_received.html", items=items, orders=orders)
+    return render_template(
+        "order_received.html",
+        items=items,
+        orders=orders,
+        from_date=from_date,
+        to_date=to_date,
+        vendors=vendors
+    )
+
+
 
 
 # ================== MANAGER DASHBOARD ==================
@@ -236,7 +284,7 @@ def manager_dashboard():
         cursor.execute(
             """
             SELECT im.item_id,
-                   im.item_name,
+                   im.item_name,im.price,
                    im.unit,
                    IFNULL(ms.quantity,0) AS mess_qty,
                    IFNULL(cs.quantity,0) AS canteen_qty,
@@ -609,7 +657,7 @@ def export_stock_csv():
             """
             SELECT im.item_id,
                    im.item_name,
-                   im.unit,
+                   im.unit,im.price,
                    IFNULL(ms.quantity,0) AS mess_qty,
                    IFNULL(cs.quantity,0) AS canteen_qty,
                    IFNULL(ms.quantity,0) + IFNULL(cs.quantity,0) AS total_qty
@@ -624,10 +672,11 @@ def export_stock_csv():
         si = StringIO()
         cw = csv.writer(si)
         cw.writerow(
-            ["Item ID", "Item Name", "Mess Stock", "Canteen Stock", "Total Stock", "Unit"]
+            ["Item ID", "Item Name", "Mess Stock", "Canteen Stock", "Total Stock", "Unit","value","Price/unit"]
         )
 
         for s in stock or []:
+            total_amount = float(s.get("total_qty") or 0) * float(s.get("price") or 0)
             cw.writerow(
                 [
                     s.get("item_id"),
@@ -636,6 +685,8 @@ def export_stock_csv():
                     float(s.get("canteen_qty") or 0),
                     float(s.get("total_qty") or 0),
                     s.get("unit"),
+                    total_amount,
+                    float(s.get("price") or 0),
                 ]
             )
 
@@ -697,6 +748,52 @@ def change_password():
         conn.close()
 
     return render_template("change_password.html")
+
+@app.route("/export_orders_csv")
+@login_required
+def export_orders_csv():
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    today = date.today()
+    from_30_days = today - timedelta(days=30)
+
+    from_date = request.args.get("from_date", from_30_days.isoformat())
+    to_date = request.args.get("to_date", today.isoformat())
+
+    cursor.execute(
+        """
+        SELECT o.*, i.item_name
+        FROM orders o
+        JOIN items_master i ON o.item_id = i.item_id
+        WHERE o.order_date BETWEEN %s AND %s
+        ORDER BY o.id DESC
+        """,
+        (from_date, to_date),
+    )
+    orders = cursor.fetchall()
+
+    si = StringIO()
+    cw = csv.writer(si)
+    cw.writerow(["Vendor", "Item", "Qty", "Unit", "Amount", "Mess", "Canteen", "Date"])
+
+    for o in orders:
+        cw.writerow([
+            o["vendor_name"],
+            o["item_name"],
+            o["total_qty"],
+            o["unit"],
+            o["price"],
+            o["mess_qty"],
+            o["canteen_qty"],
+            o["order_date"].strftime("%d-%m-%Y")
+        ])
+
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = "attachment; filename=purchase_history.csv"
+    output.headers["Content-Type"] = "text/csv"
+    return output
+
 
 
 # ================== LOGOUT ==================
