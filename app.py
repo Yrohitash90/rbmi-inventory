@@ -468,7 +468,7 @@ def usage_report():
         if usage_type in ["mess", "both"]:
             query_parts.append(
                 """
-                SELECT 'Mess' AS source, i.item_name, u.quantity_used, u.used_date
+                SELECT 'Mess' AS source, i.item_name,i.unit, u.quantity_used, u.used_date
                 FROM mess_usage u
                 JOIN items_master i ON u.item_id = i.item_id
                 WHERE u.used_date BETWEEN %s AND %s
@@ -479,7 +479,7 @@ def usage_report():
         if usage_type in ["canteen", "both"]:
             query_parts.append(
                 """
-                SELECT 'Canteen' AS source, i.item_name, u.quantity_used, u.used_date
+                SELECT 'Canteen' AS source, i.item_name,i.unit, u.quantity_used, u.used_date
                 FROM canteen_usage u
                 JOIN items_master i ON u.item_id = i.item_id
                 WHERE u.used_date BETWEEN %s AND %s
@@ -507,7 +507,7 @@ def usage_report():
             source_name = usage_type.capitalize()
             cursor.execute(
                 f"""
-                SELECT i.item_name,
+                SELECT i.item_name,i.unit,
                        SUM(u.quantity_used) AS total_used,
                        %s AS source
                 FROM {table} u
@@ -522,7 +522,7 @@ def usage_report():
         elif usage_type == "both":
             cursor.execute(
                 """
-                SELECT i.item_name,
+                SELECT i.item_name,i.unit,
                        SUM(u.quantity_used) AS total_used,
                        'Both' AS source
                 FROM (

@@ -157,8 +157,8 @@
           <td>{{ loop.index }}</td>
           <td>{{ row.source }}</td>
           <td>{{ row.item_name }}</td>
-          <td>{{ row.quantity_used | round(2) }}</td>
-          <td>{{ row.used_date }}</td>
+          <td>{{ row.quantity_used | round(2) }}&nbsp;&nbsp;&nbsp;{{ row.unit }}</td>
+          <td>{{ row.used_date.strftime('%d-%m-%Y') }}</td>
         </tr>
       {% endfor %}
     {% else %}
@@ -171,7 +171,7 @@
   </div>
 
   <div class="section-card">
-  <h5>📝 Summary ({{ from_date }} to {{ to_date }}, {{ usage_type|capitalize }})</h5>
+  <h5>📝 Summary ({{ usage_type|capitalize }})</h5>
   <div style="overflow-x:auto;">
     <table class="table table-bordered">
       <thead>
@@ -188,7 +188,7 @@
           <tr>
             <td>{{ loop.index }}</td>
             <td>{{ row.item_name }}</td>
-            <td>{{ row.total_used | round(2) }}</td>
+            <td>{{ row.total_used | round(2) }}&nbsp;&nbsp;&nbsp;{{ row.unit }}</td>
             <td>{{ row.source }}</td>
           </tr>
           {% endfor %}

@@ -164,7 +164,7 @@
 
     <!-- RIGHT: Daily Usage -->
     <div class="section-card usage-section">
-      <h5>📆 Daily Usage ({{ filters.selected_date }})</h5>
+      <h5>📆 Daily Usage</h5>
       <form method="GET" class="mb-3">
         <input type="date" name="selected_date" class="form-control" value="{{ filters.selected_date }}">
         <button class="btn btn-primary w-100 mt-2">Show</button>
@@ -186,7 +186,7 @@
       <td>{{ loop.index }}</td>
       <td>{{ u.item_name }}</td>
       <td>{{ u.quantity_used | round(2) }}</td>
-      <td>{{ u.used_date }}</td>
+      <td>{{ u.used_date.strftime('%d-%m-%Y')  }}</td>
     </tr>
     {% endfor %}
   {% else %}

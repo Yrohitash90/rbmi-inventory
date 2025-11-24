@@ -241,7 +241,6 @@
       <th>Vendor</th>
       <th>Item</th>
       <th>Total Qty</th>
-      <th>Unit</th>
       <th>Price</th>
       <th>Mess</th>
       <th>Canteen</th>
@@ -255,12 +254,12 @@
       <td>{{ loop.index }}</td>
       <td>{{ o.vendor_name }}</td>
       <td>{{ o.item_name }}</td>
-      <td>{{ o.total_qty }}</td>
-      <td>{{ o.unit }}</td>
+      <td>{{ o.total_qty }}&nbsp;&nbsp;&nbsp;{{ o.unit }}</td>
       <td>{{ o.price }}</td>
-      <td>{{ o.mess_qty }}</td>
-      <td>{{ o.canteen_qty }}</td>
-      <td>{{ o.order_date }}</td>
+      <td>{{ o.mess_qty }}&nbsp;&nbsp;&nbsp;{{ o.unit }}</td>
+      <td>{{ o.canteen_qty }}&nbsp;&nbsp;&nbsp;{{ o.unit }}</td>
+      <td>{{ o.order_date.strftime('%d-%m-%Y') }}</td>
+
     </tr>
     {% endfor %}
   </tbody>
@@ -387,6 +386,48 @@ document.addEventListener("click", (e) => {
         r.style.display = vendor.includes(v) ? "" : "none";
       });
     });
+
+    // AUTO CALC for Mess & Canteen
+const totalQty = document.querySelector('input[name="total_qty"]');
+const messQty = document.querySelector('input[name="mess_qty"]');
+const canteenQty = document.querySelector('input[name="canteen_qty"]');
+
+function updateFromMess() {
+  let total = parseFloat(totalQty.value) || 0;
+  let mess = parseFloat(messQty.value) || 0;
+
+  if (mess > total) {
+    messQty.value = "";
+    canteenQty.value = "";
+    alert("Mess qty cannot exceed total qty");
+    return;
+  }
+
+  canteenQty.value = (total - mess).toFixed(2);
+}
+
+function updateFromCanteen() {
+  let total = parseFloat(totalQty.value) || 0;
+  let canteen = parseFloat(canteenQty.value) || 0;
+
+  if (canteen > total) {
+    canteenQty.value = "";
+    messQty.value = "";
+    alert("Canteen qty cannot exceed total qty");
+    return;
+  }
+
+  messQty.value = (total - canteen).toFixed(2);
+}
+
+// Events
+messQty.addEventListener("input", updateFromMess);
+canteenQty.addEventListener("input", updateFromCanteen);
+totalQty.addEventListener("input", () => {
+  messQty.value = "";
+  canteenQty.value = "";
+});
+
   </script>
 
 </body>
