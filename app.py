@@ -331,7 +331,7 @@ def mess_dashboard():
         selected_date = request.args.get("selected_date", date.today().isoformat())
         cursor.execute(
             """
-            SELECT i.item_name, u.quantity_used, u.used_date
+            SELECT i.item_name,i.unit, u.quantity_used, u.used_date
             FROM mess_usage u
             JOIN items_master i ON u.item_id = i.item_id
             WHERE u.used_date=%s
@@ -421,7 +421,7 @@ def canteen_dashboard():
         selected_date = request.args.get("selected_date", date.today().isoformat())
         cursor.execute(
             """
-            SELECT i.item_name, u.quantity_used, u.used_date
+            SELECT i.item_name,i.unit, u.quantity_used, u.used_date
             FROM canteen_usage u
             JOIN items_master i ON u.item_id = i.item_id
             WHERE u.used_date=%s

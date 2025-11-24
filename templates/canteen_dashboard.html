@@ -185,7 +185,7 @@
     <tr>
       <td>{{ loop.index }}</td>
       <td>{{ u.item_name }}</td>
-      <td>{{ u.quantity_used | round(2) }}</td>
+      <td>{{ u.quantity_used | round(2) }} {{ u.unit }}</td>
       <td>{{ u.used_date.strftime('%d-%m-%Y')  }}</td>
     </tr>
     {% endfor %}
