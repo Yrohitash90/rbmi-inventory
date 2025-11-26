@@ -22,9 +22,9 @@ app.secret_key = "rbmi_secret_key"
 
 # ================== DB CONFIG ==================
 dbconfig = {
-    "host": "mydb-india.c5mmu4oakvas.ap-south-1.rds.amazonaws.com",
+    "host": "database-1.cz84qw6g2wnj.ap-south-1.rds.amazonaws.com",
     "user": "admin",
-    "password": "38093809Rr",
+    "password": "rbmi2025",
     "database": "rbmi_inventory",
     "auth_plugin": "mysql_native_password",
     "connection_timeout": 5,  # fast fail if DB not responding
