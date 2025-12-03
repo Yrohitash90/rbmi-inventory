@@ -247,7 +247,7 @@ def order_received():
             FROM orders o
             JOIN items_master i ON o.item_id = i.item_id
             WHERE o.order_date BETWEEN %s AND %s
-            ORDER BY o.id DESC
+            ORDER BY o.order_date DESC
             """,
             (from_date, to_date),
         )
