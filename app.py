@@ -31,9 +31,9 @@ def add_no_cache_headers(response):
 
 # ================== DB CONFIG ==================
 dbconfig = {
-    "host": "localhost",
-    "user": "root",
-    "password": "Somil@1234",
+    "host": "database-1.cz84qw6g2wnj.ap-south-1.rds.amazonaws.com",
+    "user": "admin",
+    "password": "rbmi2025",
     "database": "rbmi_inventory",
     "auth_plugin": "mysql_native_password",
     "connection_timeout": 5,  # fast fail if DB not responding
@@ -1218,4 +1218,4 @@ def logout():
 
 # ================== RUN APP ==================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5151, debug=True)
+    app.run(host="0.0.0.0", port=5151, debug=False)
