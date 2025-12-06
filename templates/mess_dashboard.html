@@ -191,6 +191,7 @@
               <th>Item</th>
               <th>Quantity Used</th>
               <th>Date</th>
+              <th>Update</th>
             </tr>
           </thead>
           <tbody>
@@ -201,6 +202,15 @@
       <td>{{ u.item_name }}</td>
       <td>{{ u.quantity_used | round(2) }} {{ u.unit }}</td>
       <td>{{ u.used_date.strftime('%d-%m-%Y') }}</td>
+      <td>
+  <a href="{{ url_for('edit_mess_usage', usage_id=u.id) }}"
+     class="btn btn-warning btn-sm">Edit</a>
+
+  <a href="{{ url_for('delete_mess_usage', usage_id=u.id) }}"
+     class="btn btn-danger btn-sm"
+     onclick="return confirm('Delete this usage?')">Delete</a>
+</td>
+
     </tr>
     {% endfor %}
   {% else %}

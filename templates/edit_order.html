@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Edit Purchase | RBMI Inventory System</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    body {
+      background: linear-gradient(135deg, #cce5ff, #e8f4ff);
+      font-family: "Poppins", sans-serif;
+    }
+
+    /* SAME SIDEBAR FROM ORDER RECEIVED */
+    .sidebar {
+      width: 250px;
+      background: linear-gradient(180deg, #007bff, #00c6ff);
+      color: white;
+      padding-top: 20px;
+      position: fixed;
+      height: 100vh;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.15);
+    }
+
+    .sidebar .brand {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .sidebar .brand img {
+      height: 55px;
+      border-radius: 8px;
+      background: #fff;
+      padding: 5px 8px;
+    }
+
+    .sidebar .nav-link {
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 5px 12px;
+      transition: 0.2s;
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+      background: rgba(255,255,255,0.2);
+      transform: translateX(4px);
+    }
+
+    .main-content {
+      margin-left: 260px;
+      padding: 20px;
+    }
+
+    .section-card {
+      background: white;
+      padding: 25px;
+      border-radius: 16px;
+      box-shadow: 0 3px 12px rgba(0,114,255,0.12);
+    }
+
+    .form-control {
+      border-radius: 8px;
+    }
+  </style>
+
+</head>
+<body>
+
+<!-- SAME SIDEBAR FROM ORDER RECEIVED PAGE -->
+<div class="sidebar">
+  <div class="brand">
+    <img src="{{ url_for('static', filename='images/rbmi_logo.png') }}">
+    <h5>RBMI Inventory<br>Management System</h5>
+  </div>
+
+  <hr style="border-color: rgba(255,255,255,0.3)">
+
+  <a class="nav-link" href="{{ url_for('add_item_master') }}">
+    <i class="bi bi-speedometer2"></i> Add Item
+  </a>
+
+  <a class="nav-link" href="{{ url_for('order_received') }}">
+    <i class="bi bi-cart-check"></i> Purchase
+  </a>
+
+  <a class="nav-link" href="{{ url_for('manager_dashboard') }}">
+    <i class="bi bi-box-seam"></i> Stock Dashboard
+  </a>
+
+  <a class="nav-link" href="{{ url_for('mess_dashboard') }}">
+    <i class="bi bi-egg-fried"></i> Mess Dashboard
+  </a>
+
+  <a class="nav-link" href="{{ url_for('canteen_dashboard') }}">
+    <i class="bi bi-shop"></i> Canteen Dashboard
+  </a>
+
+  <a class="nav-link" href="{{ url_for('usage_report') }}">
+    <i class="bi bi-file-earmark-text"></i> Usage Report
+  </a>
+
+  <a class="nav-link" href="{{ url_for('transfer_stock') }}">
+    <i class="bi bi-arrow-left-right"></i> Stock Transfer
+  </a>
+
+  <a class="nav-link" href="{{ url_for('change_password') }}">
+    <i class="bi bi-key"></i> Change Password
+  </a>
+
+  <a class="nav-link text-danger" href="{{ url_for('logout') }}">
+    <i class="bi bi-box-arrow-right"></i> Logout
+  </a>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main-content">
+
+  <div class="section-card">
+    <h3 class="text-primary fw-bold mb-4">
+      Edit Purchase – {{ item.item_name }}
+    </h3>
+
+    <form method="POST">
+
+      <table class="table table-bordered text-center align-middle">
+        <tr>
+          <th>Total Qty</th>
+          <th>Total Amount (₹)</th>
+          <th>Mess Qty</th>
+          <th>Canteen Qty</th>
+          <th>Action</th>
+        </tr>
+
+        <tr>
+          <td>
+            <input type="number" step="0.01" name="total_qty"
+                   class="form-control" value="{{ old.total_qty }}" required>
+          </td>
+
+           <td>
+            <input type="number" step="0.01" name="price"
+                   class="form-control" value="{{ old.price }}" required>
+          </td>
+          <td>
+            <input type="number" step="0.01" name="mess_qty"
+                   class="form-control" value="{{ old.mess_qty }}" required>
+          </td>
+
+          <td>
+            <input type="number" step="0.01" name="canteen_qty"
+                   class="form-control" value="{{ old.canteen_qty }}" required>
+          </td>
+
+
+          <td>
+            <button class="btn btn-success w-100">Update</button>
+          </td>
+        </tr>
+      </table>
+
+      <a href="{{ url_for('order_received') }}" class="btn btn-secondary mt-3 px-4">
+        Back
+      </a>
+
+    </form>
+
+  </div>
+
+</div>
+<script>
+
+// INPUT FIELDS
+const totalQty = document.querySelector('input[name="total_qty"]');
+const messQty = document.querySelector('input[name="mess_qty"]');
+const canteenQty = document.querySelector('input[name="canteen_qty"]');
+
+// AUTO CALCULATE MESS → CANTEEN
+function updateFromMess() {
+    let total = parseFloat(totalQty.value) || 0;
+    let mess = parseFloat(messQty.value) || 0;
+
+    if (mess > total) {
+        alert("Mess qty cannot exceed total qty");
+        messQty.value = "";
+        canteenQty.value = "";
+        return;
+    }
+
+    canteenQty.value = (total - mess).toFixed(2);
+}
+
+// AUTO CALCULATE CANTEEN → MESS
+function updateFromCanteen() {
+    let total = parseFloat(totalQty.value) || 0;
+    let canteen = parseFloat(canteenQty.value) || 0;
+
+    if (canteen > total) {
+        alert("Canteen qty cannot exceed total qty");
+        canteenQty.value = "";
+        messQty.value = "";
+        return;
+    }
+
+    messQty.value = (total - canteen).toFixed(2);
+}
+
+// WHEN TOTAL QTY CHANGES → RESET BOTH
+totalQty.addEventListener("input", () => {
+    messQty.value = "";
+    canteenQty.value = "";
+});
+
+// EVENTS
+messQty.addEventListener("input", updateFromMess);
+canteenQty.addEventListener("input", updateFromCanteen);
+
+</script>
+
+</body>
+</html>

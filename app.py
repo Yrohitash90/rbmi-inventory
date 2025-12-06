@@ -20,11 +20,20 @@ from mysql.connector import pooling, Error
 app = Flask(__name__)
 app.secret_key = "rbmi_secret_key"
 
+# ================== DISABLE BACK AFTER LOGOUT ==================
+@app.after_request
+def add_no_cache_headers(response):
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+
 # ================== DB CONFIG ==================
 dbconfig = {
-    "host": "database-1.cz84qw6g2wnj.ap-south-1.rds.amazonaws.com",
-    "user": "admin",
-    "password": "rbmi2025",
+    "host": "localhost",
+    "user": "root",
+    "password": "Somil@1234",
     "database": "rbmi_inventory",
     "auth_plugin": "mysql_native_password",
     "connection_timeout": 5,  # fast fail if DB not responding
@@ -380,7 +389,7 @@ def mess_dashboard():
         selected_date = request.args.get("selected_date", date.today().isoformat())
         cursor.execute(
             """
-            SELECT i.item_name,i.unit, u.quantity_used, u.used_date
+            SELECT u.id, i.item_name, i.unit, u.quantity_used, u.used_date
             FROM mess_usage u
             JOIN items_master i ON u.item_id = i.item_id
             WHERE u.used_date=%s
@@ -388,6 +397,7 @@ def mess_dashboard():
             """,
             (selected_date,),
         )
+
         usage = cursor.fetchall()
     finally:
         cursor.close()
@@ -471,7 +481,7 @@ def canteen_dashboard():
         selected_date = request.args.get("selected_date", date.today().isoformat())
         cursor.execute(
             """
-            SELECT i.item_name,i.unit, u.quantity_used, u.used_date
+            SELECT u.id, i.item_name, i.unit, u.quantity_used, u.used_date
             FROM canteen_usage u
             JOIN items_master i ON u.item_id = i.item_id
             WHERE u.used_date=%s
@@ -479,6 +489,7 @@ def canteen_dashboard():
             """,
             (selected_date,),
         )
+
         usage = cursor.fetchall()
     finally:
         cursor.close()
@@ -795,6 +806,142 @@ def export_orders_csv():
     output.headers["Content-Disposition"] = "attachment; filename=purchase_history.csv"
     output.headers["Content-Type"] = "text/csv"
     return output
+# ================== EDIT PURCHASE ==================
+@app.route("/edit_order/<int:order_id>", methods=["GET", "POST"])
+@login_required
+@role_required(["manager"])
+def edit_order(order_id):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Fetch old purchase
+    cursor.execute("SELECT * FROM orders WHERE id=%s", (order_id,))
+    old = cursor.fetchone()
+
+    if not old:
+        flash("Order not found!", "danger")
+        return redirect(url_for("order_received"))
+
+    # Get item info
+    cursor.execute("SELECT * FROM items_master WHERE item_id=%s", (old["item_id"],))
+    item = cursor.fetchone()
+
+    if request.method == "POST":
+        new_total = float(request.form["total_qty"])
+        new_mess = float(request.form["mess_qty"])
+        new_canteen = float(request.form["canteen_qty"])
+        new_amount = float(request.form["price"])
+
+        # ROLLBACK OLD STOCK
+        cursor.execute(
+            "UPDATE mess_stock SET quantity = quantity - %s WHERE item_id=%s",
+            (old["mess_qty"], old["item_id"]),
+        )
+        cursor.execute(
+            "UPDATE canteen_stock SET quantity = quantity - %s WHERE item_id=%s",
+            (old["canteen_qty"], old["item_id"]),
+        )
+
+        # APPLY NEW STOCK
+        cursor.execute(
+            """
+            INSERT INTO mess_stock (item_id, quantity)
+            VALUES (%s, %s)
+            ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)
+            """,
+            (old["item_id"], new_mess),
+        )
+        cursor.execute(
+            """
+            INSERT INTO canteen_stock (item_id, quantity)
+            VALUES (%s, %s)
+            ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)
+            """,
+            (old["item_id"], new_canteen),
+        )
+
+        # ROLLBACK + RECALCULATE PRICE (items_master)
+        cursor.execute(
+            "SELECT total_qty, total_amount FROM items_master WHERE item_id=%s",
+            (old["item_id"],)
+        )
+        im = cursor.fetchone()
+        total_qty = float(im["total_qty"]) - float(old["total_qty"]) + new_total
+        total_amount = float(im["total_amount"]) - float(old["price"]) + new_amount
+        new_price = total_amount / total_qty if total_qty > 0 else 0
+
+        cursor.execute(
+            """
+            UPDATE items_master SET total_qty=%s, total_amount=%s, price=%s
+            WHERE item_id=%s
+            """,
+            (total_qty, total_amount, new_price, old["item_id"])
+        )
+
+        # UPDATE ORDER
+        cursor.execute(
+            """
+            UPDATE orders SET total_qty=%s, mess_qty=%s, canteen_qty=%s, price=%s
+            WHERE id=%s
+            """,
+            (new_total, new_mess, new_canteen, new_amount, order_id)
+        )
+
+        conn.commit()
+        flash("Purchase updated successfully!", "success")
+        return redirect(url_for("order_received"))
+
+    cursor.close()
+    conn.close()
+    return render_template("edit_order.html", old=old, item=item)
+# ================== DELETE PURCHASE ==================
+@app.route("/delete_order/<int:order_id>")
+@login_required
+@role_required(["manager"])
+def delete_order(order_id):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # fetch old order
+    cursor.execute("SELECT * FROM orders WHERE id=%s", (order_id,))
+    old = cursor.fetchone()
+
+    if not old:
+        flash("Order not found!", "danger")
+        return redirect(url_for("order_received"))
+
+    item_id = old["item_id"]
+
+    # ROLLBACK STOCK
+    cursor.execute(
+        "UPDATE mess_stock SET quantity = quantity - %s WHERE item_id=%s",
+        (old["mess_qty"], item_id),
+    )
+    cursor.execute(
+        "UPDATE canteen_stock SET quantity = quantity - %s WHERE item_id=%s",
+        (old["canteen_qty"], item_id),
+    )
+
+    # UPDATE items_master (reverse calculation)
+    cursor.execute("SELECT total_qty, total_amount FROM items_master WHERE item_id=%s", (item_id,))
+    im = cursor.fetchone()
+
+    new_qty = float(im["total_qty"]) - float(old["total_qty"])
+    new_amount = float(im["total_amount"]) - float(old["price"])
+    new_price = new_amount / new_qty if new_qty > 0 else 0
+
+    cursor.execute(
+        "UPDATE items_master SET total_qty=%s, total_amount=%s, price=%s WHERE item_id=%s",
+        (new_qty, new_amount, new_price, item_id)
+    )
+
+    # delete order
+    cursor.execute("DELETE FROM orders WHERE id=%s", (order_id,))
+    conn.commit()
+
+    flash("Purchase deleted and stock restored.", "success")
+    return redirect(url_for("order_received"))
+
 
 @app.route("/transfer_stock", methods=["GET", "POST"])
 @login_required
@@ -918,6 +1065,146 @@ def transfer_stock():
         editable=editable
     )
 
+# ================== EDIT MESS USAGE ==================
+@app.route("/edit_mess_usage/<int:usage_id>", methods=["GET", "POST"])
+@login_required
+def edit_mess_usage(usage_id):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM mess_usage WHERE id=%s", (usage_id,))
+    old = cursor.fetchone()
+
+    if not old:
+        flash("Usage not found!", "danger")
+        return redirect(url_for("mess_dashboard"))
+
+    cursor.execute("SELECT item_name, unit FROM items_master WHERE item_id=%s",
+                   (old["item_id"],))
+    item = cursor.fetchone()
+
+    if request.method == "POST":
+        new_qty = float(request.form["quantity"])
+
+        # ROLLBACK old use
+        cursor.execute(
+            "UPDATE mess_stock SET quantity = quantity + %s WHERE item_id=%s",
+            (old["quantity_used"], old["item_id"])
+        )
+
+        # APPLY new
+        cursor.execute(
+            "UPDATE mess_stock SET quantity = quantity - %s WHERE item_id=%s",
+            (new_qty, old["item_id"])
+        )
+
+        # UPDATE usage table
+        cursor.execute(
+            "UPDATE mess_usage SET quantity_used=%s WHERE id=%s",
+            (new_qty, usage_id)
+        )
+
+        conn.commit()
+        flash("Mess usage updated!", "success")
+        return redirect(url_for("mess_dashboard"))
+
+    cursor.close()
+    conn.close()
+    return render_template("edit_usage.html", old=old, item=item, source="Mess")
+# ================== DELETE MESS USAGE ==================
+@app.route("/delete_mess_usage/<int:usage_id>")
+@login_required
+def delete_mess_usage(usage_id):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM mess_usage WHERE id=%s", (usage_id,))
+    old = cursor.fetchone()
+
+    if not old:
+        flash("Usage not found!", "danger")
+        return redirect(url_for("mess_dashboard"))
+
+    # ROLLBACK STOCK
+    cursor.execute(
+        "UPDATE mess_stock SET quantity = quantity + %s WHERE item_id=%s",
+        (old["quantity_used"], old["item_id"])
+    )
+
+    cursor.execute("DELETE FROM mess_usage WHERE id=%s", (usage_id,))
+    conn.commit()
+
+    flash("Mess usage deleted!", "success")
+    return redirect(url_for("mess_dashboard"))
+# ================== EDIT CANTEEN USAGE ==================
+@app.route("/edit_canteen_usage/<int:usage_id>", methods=["GET", "POST"])
+@login_required
+def edit_canteen_usage(usage_id):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM canteen_usage WHERE id=%s", (usage_id,))
+    old = cursor.fetchone()
+
+    if not old:
+        flash("Usage not found!", "danger")
+        return redirect(url_for("canteen_dashboard"))
+
+    cursor.execute("SELECT item_name, unit FROM items_master WHERE item_id=%s",
+                   (old["item_id"],))
+    item = cursor.fetchone()
+
+    if request.method == "POST":
+        new_qty = float(request.form["quantity"])
+
+        # ROLLBACK OLD
+        cursor.execute(
+            "UPDATE canteen_stock SET quantity = quantity + %s WHERE item_id=%s",
+            (old["quantity_used"], old["item_id"])
+        )
+
+        # APPLY NEW
+        cursor.execute(
+            "UPDATE canteen_stock SET quantity = quantity - %s WHERE item_id=%s",
+            (new_qty, old["item_id"])
+        )
+
+        cursor.execute(
+            "UPDATE canteen_usage SET quantity_used=%s WHERE id=%s",
+            (new_qty, usage_id)
+        )
+
+        conn.commit()
+        flash("Canteen usage updated!", "success")
+        return redirect(url_for("canteen_dashboard"))
+
+    cursor.close()
+    conn.close()
+    return render_template("edit_usage.html", old=old, item=item, source="Canteen")
+# ================== DELETE CANTEEN USAGE ==================
+@app.route("/delete_canteen_usage/<int:usage_id>")
+@login_required
+def delete_canteen_usage(usage_id):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM canteen_usage WHERE id=%s", (usage_id,))
+    old = cursor.fetchone()
+
+    if not old:
+        flash("Usage not found!", "danger")
+        return redirect(url_for("canteen_dashboard"))
+
+    cursor.execute(
+        "UPDATE canteen_stock SET quantity = quantity + %s WHERE item_id=%s",
+        (old["quantity_used"], old["item_id"])
+    )
+
+    cursor.execute("DELETE FROM canteen_usage WHERE id=%s", (usage_id,))
+    conn.commit()
+
+    flash("Canteen usage deleted!", "success")
+    return redirect(url_for("canteen_dashboard"))
 
 
 
@@ -931,4 +1218,4 @@ def logout():
 
 # ================== RUN APP ==================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5151, debug=False)
+    app.run(host="0.0.0.0", port=5151, debug=True)

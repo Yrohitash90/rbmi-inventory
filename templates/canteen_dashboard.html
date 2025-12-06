@@ -177,6 +177,9 @@
               <th>Item</th>
               <th>Quantity Used</th>
               <th>Date</th>
+              {% if session['role'] == 'canteen' %}
+              <th>Update</th>
+              {% endif %}
             </tr>
           </thead>
           <tbody>
@@ -187,6 +190,16 @@
       <td>{{ u.item_name }}</td>
       <td>{{ u.quantity_used | round(2) }} {{ u.unit }}</td>
       <td>{{ u.used_date.strftime('%d-%m-%Y')  }}</td>
+      <td>
+        {% if session['role'] == 'canteen' %}
+  <a href="{{ url_for('edit_canteen_usage', usage_id=u.id) }}"
+     class="btn btn-warning btn-sm">Edit</a>
+     {% endif %}
+  <a href="{{ url_for('delete_canteen_usage', usage_id=u.id) }}"
+     class="btn btn-danger btn-sm"
+     onclick="return confirm('Delete this usage?')">Delete</a>
+</td>
+
     </tr>
     {% endfor %}
   {% else %}
