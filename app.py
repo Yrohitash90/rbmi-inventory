@@ -317,26 +317,35 @@ def manager_dashboard():
 @login_required
 @role_required(["mess", "manager"])
 def mess_dashboard():
-    conn = get_connection()
-    if not conn:
-        flash("Database error!", "danger")
-        return redirect(url_for("login"))
 
+    # --------------------------
+    # 1️⃣ Selected Date Handling
+    # --------------------------
+
+    # If user selects new date from form (GET)
+    if request.args.get("selected_date"):
+        session["mess_selected_date"] = request.args.get("selected_date")
+
+    # If no date stored yet → default = today
+    selected_date = session.get("mess_selected_date", date.today().isoformat())
+
+    conn = get_connection()
     cursor = conn.cursor(dictionary=True)
+
     try:
+        # --------------------------
+        # 2️⃣ When user USES an item
+        # --------------------------
         if request.method == "POST":
             item_name = request.form["item_name"]
-            try:
-                qty = float(request.form["quantity"])
-            except Exception:
-                flash("Invalid quantity.", "danger")
-                return redirect(url_for("mess_dashboard"))
+            qty = float(request.form["quantity"])
 
-            # item id + stock in one go
+            # → Use date will always be stored from session
+            used_date = session.get("mess_selected_date", date.today().isoformat())
+
             cursor.execute(
                 """
-                SELECT im.item_id,
-                       IFNULL(ms.quantity,0) AS stock
+                SELECT im.item_id, IFNULL(ms.quantity,0) AS stock
                 FROM items_master im
                 LEFT JOIN mess_stock ms ON im.item_id = ms.item_id
                 WHERE im.item_name=%s
@@ -353,40 +362,42 @@ def mess_dashboard():
                 flash("Not enough stock!", "danger")
                 return redirect(url_for("mess_dashboard"))
 
-            # update stock
+            # Deduct stock
             cursor.execute(
                 "UPDATE mess_stock SET quantity = quantity - %s WHERE item_id=%s",
                 (qty, row["item_id"]),
             )
 
-            # insert usage
+            # Insert usage
             cursor.execute(
                 """
                 INSERT INTO mess_usage (item_id, quantity_used, used_date)
                 VALUES (%s, %s, %s)
                 """,
-                (row["item_id"], qty, date.today()),
+                (row["item_id"], qty, used_date),
             )
+
             conn.commit()
-            flash(f"Used {qty} units of {item_name}.", "success")
+            flash(f"{item_name} used on {used_date}.", "success")
             return redirect(url_for("mess_dashboard"))
 
-        # GET: stock
+        # --------------------------
+        # 3️⃣ Fetch Stock
+        # --------------------------
         cursor.execute(
             """
-            SELECT im.item_name,
-            ms.quantity,
-            im.unit
+            SELECT im.item_name, ms.quantity, im.unit
             FROM mess_stock ms
             JOIN items_master im ON im.item_id = ms.item_id
             WHERE ms.quantity > 0
-            ORDER BY im.item_name;
+            ORDER BY im.item_name
             """
         )
         stock = cursor.fetchall()
 
-        # GET: usage by date
-        selected_date = request.args.get("selected_date", date.today().isoformat())
+        # --------------------------
+        # 4️⃣ Fetch Daily Usage
+        # --------------------------
         cursor.execute(
             """
             SELECT u.id, i.item_name, i.unit, u.quantity_used, u.used_date
@@ -397,40 +408,50 @@ def mess_dashboard():
             """,
             (selected_date,),
         )
-
         usage = cursor.fetchall()
+
     finally:
         cursor.close()
         conn.close()
 
     filters = {"selected_date": selected_date}
+
     return render_template("mess_dashboard.html", stock=stock, usage=usage, filters=filters)
 
 
+# ================== CANTEEN DASHBOARD ==================
 # ================== CANTEEN DASHBOARD ==================
 @app.route("/canteen_dashboard", methods=["GET", "POST"])
 @login_required
 @role_required(["canteen", "manager"])
 def canteen_dashboard():
-    conn = get_connection()
-    if not conn:
-        flash("Database error!", "danger")
-        return redirect(url_for("login"))
 
+    # --------------------------
+    # 1️⃣ Selected Date Handling (SAME AS MESS DASHBOARD)
+    # --------------------------
+
+    if request.args.get("selected_date"):
+        session["canteen_selected_date"] = request.args.get("selected_date")
+
+    selected_date = session.get("canteen_selected_date", date.today().isoformat())
+
+    conn = get_connection()
     cursor = conn.cursor(dictionary=True)
+
     try:
+        # --------------------------
+        # 2️⃣ When User Uses an Item
+        # --------------------------
         if request.method == "POST":
             item_name = request.form["item_name"]
-            try:
-                qty = float(request.form["quantity"])
-            except Exception:
-                flash("Invalid quantity.", "danger")
-                return redirect(url_for("canteen_dashboard"))
+            qty = float(request.form["quantity"])
+
+            # → Use date from session
+            used_date = session.get("canteen_selected_date", date.today().isoformat())
 
             cursor.execute(
                 """
-                SELECT im.item_id,
-                       IFNULL(cs.quantity,0) AS stock
+                SELECT im.item_id, IFNULL(cs.quantity,0) AS stock
                 FROM items_master im
                 LEFT JOIN canteen_stock cs ON im.item_id = cs.item_id
                 WHERE im.item_name=%s
@@ -447,29 +468,31 @@ def canteen_dashboard():
                 flash("Insufficient stock!", "danger")
                 return redirect(url_for("canteen_dashboard"))
 
+            # Deduct
             cursor.execute(
                 "UPDATE canteen_stock SET quantity = quantity - %s WHERE item_id=%s",
                 (qty, row["item_id"]),
             )
 
+            # Insert usage
             cursor.execute(
                 """
                 INSERT INTO canteen_usage (item_id, quantity_used, used_date)
                 VALUES (%s, %s, %s)
                 """,
-                (row["item_id"], qty, date.today()),
+                (row["item_id"], qty, used_date),
             )
 
             conn.commit()
-            flash(f"Used {qty} units of {item_name}.", "success")
+            flash(f"{item_name} used on {used_date}.", "success")
             return redirect(url_for("canteen_dashboard"))
 
-        # GET: stock
+        # --------------------------
+        # 3️⃣ Fetch Stock
+        # --------------------------
         cursor.execute(
             """
-            SELECT im.item_name,
-            cs.quantity,
-            im.unit
+            SELECT im.item_name, cs.quantity, im.unit
             FROM canteen_stock cs
             JOIN items_master im ON im.item_id = cs.item_id
             WHERE cs.quantity > 0
@@ -478,7 +501,9 @@ def canteen_dashboard():
         )
         stock = cursor.fetchall()
 
-        selected_date = request.args.get("selected_date", date.today().isoformat())
+        # --------------------------
+        # 4️⃣ Fetch Daily Usage
+        # --------------------------
         cursor.execute(
             """
             SELECT u.id, i.item_name, i.unit, u.quantity_used, u.used_date
@@ -489,8 +514,8 @@ def canteen_dashboard():
             """,
             (selected_date,),
         )
-
         usage = cursor.fetchall()
+
     finally:
         cursor.close()
         conn.close()
